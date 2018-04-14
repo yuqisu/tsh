@@ -301,54 +301,59 @@ int builtin_cmd(char **argv)
  */
 void do_bgfg(char **argv) 
 {
-    struct job_t* jd = NULL;                                                        //Store the job details
+	int jobid;
+	int pid;
+	struct job_t *job;
+	// if there is no augument 
+ 	if(!argv[1]){
+		printf("requires a job id or pid\n");
+		return;
+	}
 
-    if( argv[1] == NULL ){                                                          //If no second argument
-        printf("%s command requires PID or %%jobid argument\n", argv[0]);           //throw error
-        return;
-    }
+	char *arg = argv[1];
+	// job id
+	if(arg[0]=='%'){
+		if(!isdigit(arg[1])){
+			printf("requires a job id\n");
+			return;
+		}else{
+			jobid = arg[1];
+			job = getjobjid(jobs,jobid);
+			if(!job){
+				printf("cannot find a job with this id\n");	
+				return;
+			}else{
+				pid = job->pid;	
+			}
+		}
+	
+	//pid
+	}else{
+		if(!isdigit(arg[0])){
+		printf("requires pid\n");
+		return;
+		}
+		pid = arg[0];
+		job = getjobpid(jobs,pid);
+		if(!job){
+		printf("cannot find a job with this id\n");	
+		return;
+		}
+	
+	}
 
-    if(argv[1][0] == '%'){                                                          //If % then job id
+	Kill(-job->pid,SIGCONT);
 
-        if(!isdigit(argv[1][1])){                                                   //If not a digit
-            printf("%s: argument must be a pid or %%jobid\n", argv[0]);             //throw error
-            return;
-        }
+	if(!strcmp(argv[0],"bg")){
+	job->state = BG;
+	}else{
+	job->state= FG;
+	waitfg(job->pid);
+	}
+	
+	
 
-        int jid = atoi( &argv[1][1] );                                              //Get the jid
-        if( !( jd = getjobjid( jobs, jid ) ) ){                                     //If no such job with that jid
-            printf( "%s: no such job\n", argv[1] );                                 //throw error
-            return;
-        }
-    }
-
-    else{                                                                           //If no % then pid
-
-        if(!isdigit(argv[1][0])){                                                   //If not a digit
-            printf("%s: argument must be a pid or %%jobid\n", argv[0]);             //throw error
-            return;
-         }
-
-        pid_t pid = atoi( argv[1] );                                                //get the pid
-        if( !( jd = getjobpid( jobs, pid ) ) ){                                     //if no such job with that pid
-            printf( "(%s): no such process\n", argv[1]);                            //throw error
-            return;
-        }
-    }
-
-    Kill(-jd->pid, SIGCONT);                                                        //Send SIGCONT signal
-
-    if( !strcmp( argv[0],"bg" ) ){                                                  //If background
-        jd->state = BG;                                                             //Change job state to BG
-        printf("[%d] (%d) %s",jd->jid,jd->pid,jd->cmdline);                         //print status
-    }
-
-    else {                                                                          //If foreground
-        jd->state = FG;                                                             //Change job state to FG
-        waitfg( jd->pid );                                                          //Wait for the job to finish
-    }
-
-    return;
+	
 }
 
 /*
